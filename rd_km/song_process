@@ -1,0 +1,70 @@
+"""
+SONG 数据集实验脚本
+运行 random、k-means++ 和 K-MC2 的 seeding，并保存结果。
+注意：k=2000，计算量较大，可根据需要调整种子数或 m 值。
+"""
+
+import numpy as np
+import pandas as pd
+import time
+from tqdm import tqdm
+
+# 假设以下函数已定义在 baseline.py 和 k_mc2.py 中
+from rd_kmeans import random_seed, kmeans_plus_plus_seed, run_baseline_experiment
+
+# ------------------------------------------------------------
+# 数据加载函数
+# ------------------------------------------------------------
+def load_song_data(file_path):
+    """加载逗号分隔的 SONG 数据集（第一列为 ID，后 90 维）"""
+    print("Loading SONG data...")
+    data = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split(',')
+            # 跳过第一列 ID，其余转为浮点数
+            features = [float(x) for x in parts[1:]]
+            data.append(features)
+    X = np.array(data, dtype=np.float64)
+    print(f"SONG data loaded: {X.shape}")
+    return X
+
+# ------------------------------------------------------------
+# 主程序
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    # ========== 配置 ==========
+    song_file = "YearPredictionMSD.txt"        # 请修改为实际路径
+    k = 2000                              # SONG 的聚类数（注意！）
+    seeds = list(range(50))                 # 因计算量大，先只跑 5 个种子（可根据需要增加）
+
+    # 加载数据
+    X = load_song_data(song_file)
+
+    results = []
+
+    # 1. Random seeding
+    for seed in seeds:
+        print(f"Running Random, seed={seed}")
+        res = run_baseline_experiment(X, k, 'random', seed, dataset_name="SONG")
+        results.append(res)
+
+    # 2. k-means++ seeding
+    for seed in seeds:
+        print(f"Running k-means++, seed={seed}")
+        res = run_baseline_experiment(X, k, 'kmeans++', seed, dataset_name="SONG")
+        results.append(res)
+
+    # 保存结果
+    df = pd.DataFrame(results)
+    output_file = "bbaseline_song_results.csv"
+    df.to_csv(output_file, index=False)
+    print(f"\nSONG results saved to {output_file}")
+
+    # 显示统计摘要
+    print("\n=== SONG Summary ===")
+    stats = df.groupby(['algorithm', 'm'])['final_cost'].agg(['mean', 'std', 'count'])
+    print(stats)
+    print("\nAverage distance computations:")
+    dist_stats = df.groupby(['algorithm', 'm'])['dist_computations'].mean()
+    print(dist_stats)
